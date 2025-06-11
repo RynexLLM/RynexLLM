@@ -162,7 +162,7 @@ export class SnapshotFormatter extends AsyncService {
         const uid = this.threadLocal.get('uid');
         do {
             if (pdfMode) {
-                contentText = snapshot.parsed?.content || snapshot.text;
+                contentText = (snapshot.parsed?.content || snapshot.text || '').trim();
                 break;
             }
 
@@ -172,7 +172,7 @@ export class SnapshotFormatter extends AsyncService {
                 snapshot.elemCount! > 70_000
             ) {
                 this.logger.warn('Degrading to text to protect the server', { url: snapshot.href });
-                contentText = snapshot.text;
+                contentText = (snapshot.text || '').trimEnd();
                 break;
             }
 
@@ -284,29 +284,27 @@ export class SnapshotFormatter extends AsyncService {
             ) {
                 toBeTurnedToMd = jsDomElementOfHTML;
                 try {
-                    contentText = this.jsdomControl.runTurndown(turnDownService, jsDomElementOfHTML);
+                    contentText = this.jsdomControl.runTurndown(turnDownService, jsDomElementOfHTML).trim();
                 } catch (err) {
                     this.logger.warn(`Turndown failed to run, retrying without plugins`, { err });
                     const vanillaTurnDownService = this.getTurndown({ url: snapshot.rebase || nominalUrl, imgDataUrlToObjectUrl });
                     try {
-                        contentText = this.jsdomControl.runTurndown(vanillaTurnDownService, jsDomElementOfHTML);
+                        contentText = this.jsdomControl.runTurndown(vanillaTurnDownService, jsDomElementOfHTML).trim();
                     } catch (err2) {
                         this.logger.warn(`Turndown failed to run, giving up`, { err: err2 });
                     }
                 }
             }
             if (this.isPoorlyTransformed(contentText, toBeTurnedToMd)) {
-                contentText = snapshot.text;
+                contentText = (snapshot.text || '').trimEnd();
             }
         } while (false);
-
-        const cleanText = contentText?.includes('return') ? contentText.trimEnd() : (contentText || '').trim();
 
         const formatted: FormattedPage = {
             title: (snapshot.parsed?.title || snapshot.title || '').trim(),
             description: (snapshot.description || '').trim(),
             url: nominalUrl?.toString() || snapshot.href?.trim(),
-            content: cleanText,
+            content: contentText,
             publishedTime: snapshot.parsed?.publishedTime || undefined,
             [Symbol.dispose]: () => { },
         };
