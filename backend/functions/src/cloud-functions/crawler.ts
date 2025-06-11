@@ -310,6 +310,13 @@ export class CrawlerHost extends RPCHost {
             return formatted;
         }
 
+        if (crawlerOptions.isRequestingCompoundContentFormat()) {
+            throw new ParamValidationError({
+                path: 'respondWith',
+                message: `You are requesting compound content format, please explicitly accept 'text/event-stream' or 'application/json' in header.`
+            });
+        }
+
         for await (const scrapped of this.cachedScrap(targetUrl, crawlOpts, crawlerOptions)) {
             lastScrapped = scrapped;
             if (crawlerOptions.waitForSelector || ((!scrapped?.parsed?.content || !scrapped?.title?.trim()) && !scrapped?.pdfs?.length)) {
@@ -600,8 +607,20 @@ export class CrawlerHost extends RPCHost {
             return 0;
         }
 
-        const textContent = formatted?.content || formatted?.description || formatted?.text || formatted?.html;
         let amount = 0;
+        const textContent = formatted?.content || formatted?.description || formatted?.text || formatted?.html;
+        if (formatted.content) {
+            amount += estimateToken(formatted.content);
+        } else if (formatted.description) {
+            amount += estimateToken(formatted.description);
+        }
+        if (formatted.text) {
+            amount += estimateToken(formatted.text);
+        }
+        if (formatted.html) {
+            amount += estimateToken(formatted.html);
+        }
+
         do {
             if (typeof textContent === 'string') {
                 amount = estimateToken(textContent);
@@ -684,7 +703,7 @@ export class CrawlerHost extends RPCHost {
         const crawlOpts: ExtraScrappingOptions = {
             proxyUrl: opts.proxyUrl,
             cookies: opts.setCookies,
-            favorScreenshot: ['screenshot', 'pageshot'].includes(opts.respondWith),
+            favorScreenshot: ['screenshot', 'pageshot'].some((x) => opts.respondWith.includes(x)),
             removeSelector: opts.removeSelector,
             targetSelector: opts.targetSelector,
             waitForSelector: opts.waitForSelector,
