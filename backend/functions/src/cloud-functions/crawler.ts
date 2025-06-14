@@ -866,7 +866,7 @@ export class CrawlerHost extends RPCHost {
     }
 
     async getFinalSnapshot(url: URL, opts?: ExtraScrappingOptions, crawlerOptions?: CrawlerOptions): Promise<PageSnapshot | undefined> {
-        const it = this.iterSnapshots(url, { ...opts, engine: ENGINE_TYPE.BROWSER }, crawlerOptions);
+        const it = this.cachedScrap(url, { ...opts, engine: ENGINE_TYPE.BROWSER }, crawlerOptions);
 
         let lastSnapshot;
         let lastError;
