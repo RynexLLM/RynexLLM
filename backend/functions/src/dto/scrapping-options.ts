@@ -1,4 +1,4 @@
-import { Also, AutoCastable, Prop, RPC_CALL_ENVIRONMENT } from 'civkit'; // Adjust the import based on where your decorators are defined
+import { Also, AutoCastable, ParamValidationError, Prop, RPC_CALL_ENVIRONMENT } from 'civkit'; // Adjust the import based on where your decorators are defined
 import type { Request, Response } from 'express';
 import { Cookie, parseString as parseSetCookieString } from 'set-cookie-parser';
 
@@ -9,9 +9,12 @@ export enum CONTENT_FORMAT {
     TEXT = 'text',
     PAGESHOT = 'pageshot',
     SCREENSHOT = 'screenshot',
+    VLM = 'vlm',
+    READER_LM = 'readerlm-v2',
 }
 
 export enum ENGINE_TYPE {
+    AUTO = 'auto',
     BROWSER = 'browser',
     DIRECT = 'direct',
     VLM = 'vlm',
@@ -228,7 +231,7 @@ export class CrawlerOptions extends AutoCastable {
     @Prop({
         default: false,
     })
-    withLinksSummary!: boolean;
+    withLinksSummary!: boolean | string;
 
     @Prop({
         default: false,
@@ -335,6 +338,17 @@ export class CrawlerOptions extends AutoCastable {
         if (customMode !== undefined) {
             instance.respondWith = customMode;
         }
+        if (instance.respondWith) {
+            instance.respondWith = instance.respondWith.toLowerCase();
+        }
+        if (instance.respondWith?.includes('lm')) {
+            if (instance.respondWith.includes('content') || instance.respondWith.includes('markdown')) {
+                throw new ParamValidationError({
+                    path: 'respondWith',
+                    message: `LM formats conflicts with content/markdown.`,
+                });
+            }
+        }
 
         const locale = ctx?.req.get('x-locale');
         if (locale !== undefined) {
@@ -352,7 +366,11 @@ export class CrawlerOptions extends AutoCastable {
         }
         const withLinksSummary = ctx?.req.get('x-with-links-summary');
         if (withLinksSummary !== undefined) {
-            instance.withLinksSummary = Boolean(withLinksSummary);
+            if (withLinksSummary === 'all') {
+                instance.withLinksSummary = withLinksSummary;
+            } else {
+                instance.withLinksSummary = Boolean(withLinksSummary);
+            }
         }
         const withImagesSummary = ctx?.req.get('x-with-images-summary');
         if (withImagesSummary !== undefined) {
@@ -403,8 +421,15 @@ export class CrawlerOptions extends AutoCastable {
         if (engine) {
             instance.engine = engine;
         }
-        if (instance.noCache || !instance.isTypicalRequest()) {
-            instance.engine ??= ENGINE_TYPE.BROWSER;
+        if (instance.engine) {
+            instance.engine = instance.engine.toLowerCase();
+        }
+        if (instance.engine === ENGINE_TYPE.VLM) {
+            instance.engine = ENGINE_TYPE.BROWSER;
+            instance.respondWith = CONTENT_FORMAT.VLM;
+        } else if (instance.engine === ENGINE_TYPE.READER_LM) {
+            instance.engine = undefined;
+            instance.respondWith = CONTENT_FORMAT.READER_LM;
         }
 
         const keepImgDataUrl = ctx?.req.get('x-keep-img-data-url');
@@ -453,6 +478,10 @@ export class CrawlerOptions extends AutoCastable {
 
         if (instance.cacheTolerance) {
             instance.cacheTolerance = instance.cacheTolerance * 1000;
+        }
+
+        if (instance.noCache || !instance.isTypicalRequest()) {
+            instance.engine ??= ENGINE_TYPE.BROWSER;
         }
 
         return instance;
