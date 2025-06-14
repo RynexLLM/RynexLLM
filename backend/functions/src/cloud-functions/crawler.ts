@@ -84,14 +84,6 @@ export class CrawlerHost extends RPCHost {
                 Reflect.set(snapshot, 'locale', options.locale);
             }
             await this.setToCache(options.url, snapshot);
-
-            if (!options.engine) {
-                try {
-                    await this.exploreDirectEngine(options.url, options, snapshot);
-                } catch (err) {
-                    this.logger.warn(`Failed to explore direct engine option for ${options.url.href}`, { err });
-                }
-            }
         });
 
         puppeteerControl.on('abuse', async (abuseEvent: { url: URL; reason: string, sn: number; }) => {
@@ -149,11 +141,11 @@ export class CrawlerHost extends RPCHost {
     })
     @CloudHTTPv2({
         runtime: {
-            memory: '4GiB',
+            memory: '8GiB',
             cpu: 2,
             timeoutSeconds: 300,
-            concurrency: 8,
-            maxInstances: 1250,
+            concurrency: 10,
+            maxInstances: 1000,
             minInstances: 1,
         },
         tags: ['Crawler'],
@@ -260,19 +252,6 @@ export class CrawlerHost extends RPCHost {
 
 
         const crawlOpts = await this.configure(crawlerOptions);
-
-        if (!crawlOpts.engine) {
-            const domainProfile = (await DomainProfile.fromFirestoreQuery(
-                DomainProfile.COLLECTION
-                    .where('origin', '==', targetUrl.origin.toLowerCase())
-                    .limit(1)
-            ))[0];
-
-            if (domainProfile?.engine) {
-                crawlOpts.engine = domainProfile.engine;
-            }
-        }
-
         if (!ctx.req.accepts('text/plain') && ctx.req.accepts('text/event-stream')) {
             const sseStream = new OutputServerEventStream();
             rpcReflect.return(sseStream);
@@ -649,10 +628,18 @@ export class CrawlerHost extends RPCHost {
             return;
         }
 
-        if (crawlOpts?.engine === ENGINE_TYPE.DIRECT) {
-            yield this.curlControl.urlToSnapshot(urlToCrawl, crawlOpts);
+        if (crawlOpts?.engine?.startsWith(ENGINE_TYPE.DIRECT)) {
+            const engine = crawlOpts?.engine;
+            try {
+                const snapshot = await this.curlControl.urlToSnapshot(urlToCrawl, crawlOpts);
+                yield snapshot;
 
-            return;
+                return;
+            } catch (err) {
+                if (!engine.endsWith('?')) {
+                    throw err;
+                }
+            }
         }
 
         let cache;
@@ -845,12 +832,14 @@ export class CrawlerHost extends RPCHost {
         nominalUrl?: URL,
         urlValidMs?: number
     ) {
+        const presumedURL = crawlerOptions.base === 'eventual' ? new URL(snapshot.href) : nominalUrl;
+
         const respondWith = crawlerOptions.respondWith;
         if (respondWith === CONTENT_FORMAT.READER_LM || respondWith === CONTENT_FORMAT.VLM) {
             const output: FormattedPage = {
                 title: snapshot.title,
                 content: snapshot.parsed?.textContent,
-                url: snapshot.href,
+                url: presumedURL?.href || snapshot.href,
                 [Symbol.dispose]: () => undefined,
             };
 
@@ -862,7 +851,7 @@ export class CrawlerHost extends RPCHost {
             return output;
         }
 
-        return this.snapshotFormatter.formatSnapshot(respondWith, snapshot, nominalUrl, urlValidMs);
+        return this.snapshotFormatter.formatSnapshot(respondWith, snapshot, presumedURL, urlValidMs);
     }
 
     async getFinalSnapshot(url: URL, opts?: ExtraScrappingOptions, crawlerOptions?: CrawlerOptions): Promise<PageSnapshot | undefined> {

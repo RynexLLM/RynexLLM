@@ -73,7 +73,7 @@ export const tailwindClasses = new Set([
     "inline-grid",
     "contents",
     "list-item",
-    "hidden",
+    // "hidden",
     "float-start",
     "float-end",
     "float-right",

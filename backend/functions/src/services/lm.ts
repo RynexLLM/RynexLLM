@@ -38,7 +38,7 @@ export class LmControl extends AsyncService {
             throw new AssertionFailureError('Screenshot of the page is not available');
         }
 
-        const html = await this.jsdomControl.cleanHTMLforLMs(snapshot.html, 'script,link,style,textarea,select>option,header,footer,nav,svg')
+        const html = await this.jsdomControl.cleanHTMLforLMs(snapshot.html, 'script,link,style,textarea,select>option,svg')
 
         const it = this.commonLLM.iterRun('vertex-gemini-1.5-flash-002', {
             prompt: [

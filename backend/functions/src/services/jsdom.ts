@@ -193,7 +193,7 @@ export class JSDomControl extends AsyncService {
                     try {
                         const parsed = new URL(href, snapshot.rebase || snapshot.href);
 
-                        return [parsed.toString(), text] as const;
+                        return [text, parsed.toString()] as const;
                     } catch (err) {
                         return undefined;
                     }
@@ -265,6 +265,13 @@ export class JSDomControl extends AsyncService {
             const classes = x.getAttribute('class')?.split(/\s+/g) || [];
             const newClasses = classes.filter((c) => tailwindClasses.has(c));
             x.setAttribute('class', newClasses.join(' '));
+        });
+        jsdom.window.document.querySelectorAll('[style]').forEach((x) => {
+            const style = x.getAttribute('style')?.toLocaleLowerCase() || '';
+            if (style.startsWith('display: none')) {
+                return;
+            }
+            x.removeAttribute('style');
         });
 
         const dt = Date.now() - t0;

@@ -431,8 +431,14 @@ export class SnapshotFormatter extends AsyncService {
             }
             if (this.links) {
                 const linkSummaryChunks = ['Links/Buttons:'];
-                for (const [k, v] of Object.entries(this.links)) {
-                    linkSummaryChunks.push(`- [${k}](${v})`);
+                if (Array.isArray(this.links)) {
+                    for (const [k, v] of this.links) {
+                        linkSummaryChunks.push(`- [${k}](${v})`);
+                    }
+                } else {
+                    for (const [k, v] of Object.entries(this.links)) {
+                        linkSummaryChunks.push(`- [${k}](${v})`);
+                    }
                 }
                 if (linkSummaryChunks.length === 1) {
                     linkSummaryChunks.push('This page does not seem to contain any buttons/links.');
