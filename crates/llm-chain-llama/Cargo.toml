@@ -25,4 +25,4 @@ tokio.workspace = true
 futures = "0.3.29"
 
 [dev-dependencies]
-tokio = { version = "1.28.2", features = ["macros", "rt"] }
+tokio = { version = "1.44.2", features = ["macros", "rt"] }

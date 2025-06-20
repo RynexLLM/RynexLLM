@@ -25,4 +25,4 @@ strum_macros = "0.25.3"
 thiserror = "1.0.40"
 
 [dev-dependencies]
-tokio = { version = "1.28.2", features = ["macros", "rt"] }
+tokio = { version = "1.44.2", features = ["macros", "rt"] }

@@ -17,4 +17,4 @@ llm-chain = { path = "../llm-chain", version = "0.13.0", default-features = fals
 thiserror = "1.0.40"
 
 [dev-dependencies]
-tokio = { version = "1.28.2", features = ["macros", "rt"] }
+tokio = { version = "1.44.2", features = ["macros", "rt"] }
