@@ -19,7 +19,7 @@ async-trait.workspace = true
 llm-chain = { path = "../llm-chain", version = "0.13.0", default-features = false }
 serde.workspace = true
 strum = "0.24"
-strum_macros = "0.24"
+strum_macros = "0.25"
 thiserror.workspace = true
 tiktoken-rs = { version = "0.5.7" }
 tokio.workspace = true
